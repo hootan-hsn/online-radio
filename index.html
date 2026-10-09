@@ -28,31 +28,29 @@
 </div>
 
 <script>
-// 🌟 FIX: Add "raadio." and "/radio.mp3" to the string values
-const AUDIO_BASE = "https://raadio.run.place";
-const API_BASE   = "https://raadio.run.place";
+    const AUDIO_BASE = "https://raadio.run.place/radio.mp3";
+    const API_BASE   = "https://raadio.run.place/skip";   // <-- must match your FastAPI route
 
-
-    const audioPlayer = new Audio();
-    audioPlayer.crossOrigin = "anonymous";
+    const audioPlayer = new Audio();   // crossOrigin not needed for plain playback
     const statusDiv = document.getElementById('status');
+    let resyncing = false;
 
     function syncStream() {
+        if (resyncing) return;          // stops stalled/error from looping
+        resyncing = true;
         const wasPlaying = !audioPlayer.paused;
-        // 🌟 FIX: Clean query parameter concatenation string building layout
-        audioPlayer.src = AUDIO_BASE + "?timestamp=" + Date.now();
+        audioPlayer.src = AUDIO_BASE + "?t=" + Date.now();
         audioPlayer.load();
-        if (wasPlaying) {
-            setTimeout(() => { audioPlayer.play().catch(e => console.log("Buffering...")); }, 600);
-        }
+        if (wasPlaying) audioPlayer.play().catch(() => {});
+        setTimeout(() => { resyncing = false; }, 3000);
     }
 
     document.getElementById('play-btn').addEventListener('click', () => {
-        statusDiv.innerText = "Connecting to live radio...";
-        audioPlayer.src = AUDIO_BASE + "?timestamp=" + Date.now();
+        statusDiv.innerText = "Connecting...";
+        audioPlayer.src = AUDIO_BASE + "?t=" + Date.now();
         audioPlayer.play()
-            .then(() => { statusDiv.innerText = "Playing Live Stream..."; })
-            .catch(err => { statusDiv.innerText = "Click PLAY again to stream."; });
+            .then(() => statusDiv.innerText = "Playing live stream...")
+            .catch(() => statusDiv.innerText = "Click PLAY again.");
     });
 
     document.getElementById('pause-btn').addEventListener('click', () => {
@@ -63,13 +61,10 @@ const API_BASE   = "https://raadio.run.place";
     document.getElementById('skip-btn').addEventListener('click', async () => {
         statusDiv.innerText = "Voting to skip...";
         try {
-            const response = await fetch(API_BASE, { method: 'POST' });
-            const data = await response.json();
+            const res = await fetch(API_BASE, { method: 'POST' });
+            const data = await res.json();
             statusDiv.innerText = data.message;
-
-            if (data.status === "success" || data.message.includes("globally")) {
-                syncStream();
-            }
+            if (data.status === "success" || data.message.includes("globally")) syncStream();
         } catch (err) {
             statusDiv.innerText = "Error hitting skip server.";
             console.error(err);
@@ -79,6 +74,5 @@ const API_BASE   = "https://raadio.run.place";
     audioPlayer.addEventListener('stalled', syncStream);
     audioPlayer.addEventListener('error', syncStream);
 </script>
-
 </body>
 </html>
