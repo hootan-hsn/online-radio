@@ -65,23 +65,22 @@
     audioPlayer.crossOrigin = "anonymous";
 
     const status = document.getElementById('status');
-
-    // Helper function to connect cleanly to the stream without loading from memory cache
-    function syncStream() {
-        const wasPlaying = !audioPlayer.paused;
-        audioPlayer.src = STREAM_URL + "?cb=" + Date.now();
-        audioPlayer.load();
-        if (wasPlaying) {
-            setTimeout(() => { audioPlayer.play(); }, 500);
-        }
+// Sync Control Routine
+function syncStream() {
+    const wasPlaying = !audioPlayer.paused;
+    audioPlayer.src = STREAM_URL + "?cb=" + Date.now(); // 👈 Compiles cleanly to: https://run.place...
+    audioPlayer.load();
+    if (wasPlaying) {
+        setTimeout(() => { audioPlayer.play(); }, 500);
     }
+}
 
-    // Controls
-    document.getElementById('play-btn').addEventListener('click', () => {
-        audioPlayer.src = STREAM_URL + "?cb=" + Date.now();
-        audioPlayer.play();
-        status.innerText = "Playing Live Stream...";
-    });
+// Play Control Activation
+document.getElementById('play-btn').addEventListener('click', () => {
+    audioPlayer.src = STREAM_URL + "?cb=" + Date.now(); // 👈 Must match STREAM_URL variable criteria
+    audioPlayer.play();
+    status.innerText = "Playing Live Stream...";
+});
 
     document.getElementById('pause-btn').addEventListener('click', () => {
         audioPlayer.pause();
