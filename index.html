@@ -92,7 +92,7 @@
     document.getElementById('skip-btn').addEventListener('click', async () => {
         status.innerText = "Voting to skip...";
         try {
-            const response = await fetch('https://raadio.run.place', { method: 'POST' });
+            const response = await fetch('https://run.place', { method: 'POST' });
             const data = await response.json();
             status.innerText = data.message;
 
