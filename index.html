@@ -28,8 +28,8 @@
 </div>
 
 <script>
-    const AUDIO_BASE = "https://raadio.run.place/radio.mp3";
-    const API_BASE   = "https://raadio.run.place/skip";   // <-- must match your FastAPI route
+    const AUDIO_BASE = "/radio.mp3";
+    const API_BASE   = "/skip";
 
     const audioPlayer = new Audio();   // crossOrigin not needed for plain playback
     const statusDiv = document.getElementById('status');
