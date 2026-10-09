@@ -6,7 +6,7 @@
     <title>Telegram Live Radio</title>
     <style>
         body { background: #111; color: #fff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: #222; padding: 30px; border-radius: 16px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+        .card { background: #222; padding: 30px; border-radius: 16px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.5); width: 280px;}
         button { padding: 10px 20px; margin: 5px; font-weight: bold; cursor: pointer; border-radius: 8px; border: none; }
         .skip-btn { background: #ff4757; color: white; width: 100%; margin-top: 15px; }
         #status { margin-top: 15px; font-size: 14px; color: #aaa; }
@@ -28,61 +28,53 @@
 </div>
 
 <script>
-    // 📻 HARDCODED CORE URL PATHS (Isolates syntax concatenation bugs)
+    // 📻 FIXED PURE ENDPOINTS
+    const AUDIO_BASE = "https://run.place";
+    const API_BASE   = "https://run.place";
+
     const audioPlayer = new Audio();
     audioPlayer.crossOrigin = "anonymous";
-
-    const statusElement = document.getElementById('status');
+    const statusDiv = document.getElementById('status');
 
     function syncStream() {
         const wasPlaying = !audioPlayer.paused;
-        // 🌟 FORCE EXPLICIT PATH: Ensures the link structure ALWAYS targets the mp3 mountpoint
-        audioPlayer.src = "https://run.place" + Date.now();
+        // 🌟 FIX: Clean query parameter concatenation string building layout
+        audioPlayer.src = AUDIO_BASE + "?timestamp=" + Date.now();
         audioPlayer.load();
         if (wasPlaying) {
-            setTimeout(() => { 
-                audioPlayer.play().catch(e => console.log("Buffering...")); 
-            }, 600);
+            setTimeout(() => { audioPlayer.play().catch(e => console.log("Buffering...")); }, 600);
         }
     }
 
-    // Play button routine (Cleaned up native promises to avoid extension conflicts)
     document.getElementById('play-btn').addEventListener('click', () => {
-        statusElement.innerText = "Connecting to live radio...";
-        audioPlayer.src = "https://run.place" + Date.now();
-        
+        statusDiv.innerText = "Connecting to live radio...";
+        audioPlayer.src = AUDIO_BASE + "?timestamp=" + Date.now();
         audioPlayer.play()
-            .catch(err => {
-                console.log("Playback interaction deferred:", err);
-                statusElement.innerText = "Click PLAY again to stream.";
-            });
-            
-        statusElement.innerText = "Playing Live Stream...";
+            .then(() => { statusDiv.innerText = "Playing Live Stream..."; })
+            .catch(err => { statusDiv.innerText = "Click PLAY again to stream."; });
     });
 
     document.getElementById('pause-btn').addEventListener('click', () => {
         audioPlayer.pause();
-        statusElement.innerText = "Paused.";
+        statusDiv.innerText = "Paused.";
     });
 
-    // Skip Endpoint Controller
     document.getElementById('skip-btn').addEventListener('click', async () => {
-        statusElement.innerText = "Voting to skip...";
+        statusDiv.innerText = "Voting to skip...";
         try {
-            const response = await fetch('https://run.place', { method: 'POST' });
+            const response = await fetch(API_BASE, { method: 'POST' });
             const data = await response.json();
-            statusElement.innerText = data.message;
+            statusDiv.innerText = data.message;
 
             if (data.status === "success" || data.message.includes("globally")) {
                 syncStream();
             }
         } catch (err) {
-            statusElement.innerText = "Error hitting skip server.";
+            statusDiv.innerText = "Error hitting skip server.";
             console.error(err);
         }
     });
 
-    // Auto recovery listeners
     audioPlayer.addEventListener('stalled', syncStream);
     audioPlayer.addEventListener('error', syncStream);
 </script>
