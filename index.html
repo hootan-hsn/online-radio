@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Live Radio</title>
+    <style>
+        body {
+            background: #111;
+            color: #fff;
+            font-family: sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .card {
+            background: #222;
+            padding: 30px;
+            border-radius: 16px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 8px;
+            border: none;
+        }
+        .skip-btn {
+            background: #ff4757;
+            color: white;
+            width: 100%;
+            margin-top: 15px;
+        }
+        #status {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>Live Radio Player</h2>
+    <p>Streaming from AWS & Telegram</p>
+    
+    <div>
+        <button id="play-btn" style="background: #2ed573; color: white;">PLAY</button>
+        <button id="pause-btn" style="background: #ffa502; color: white;">PAUSE</button>
+    </div>
+    
+    <button id="skip-btn" class="skip-btn">⏭️ VOTE TO SKIP</button>
+    <div id="status">Stopped</div>
+</div>
+
+<script>
+    // 📻 Target your secure streaming URL (disguised on port 443)
+    const STREAM_URL = "https://raadio.run.place";
+    const audioPlayer = new Audio();
+    audioPlayer.crossOrigin = "anonymous";
+
+    const status = document.getElementById('status');
+
+    // Helper function to connect cleanly to the stream without loading from memory cache
+    function syncStream() {
+        const wasPlaying = !audioPlayer.paused;
+        audioPlayer.src = STREAM_URL + "?cb=" + Date.now();
+        audioPlayer.load();
+        if (wasPlaying) {
+            setTimeout(() => { audioPlayer.play(); }, 500);
+        }
+    }
+
+    // Controls
+    document.getElementById('play-btn').addEventListener('click', () => {
+        audioPlayer.src = STREAM_URL + "?cb=" + Date.now();
+        audioPlayer.play();
+        status.innerText = "Playing Live Stream...";
+    });
+
+    document.getElementById('pause-btn').addEventListener('click', () => {
+        audioPlayer.pause();
+        status.innerText = "Paused.";
+    });
+
+    // Skip Button Logic
+    document.getElementById('skip-btn').addEventListener('click', async () => {
+        status.innerText = "Voting to skip...";
+        try {
+            const response = await fetch('https://raadio.run.place', { method: 'POST' });
+            const data = await response.json();
+            status.innerText = data.message;
+
+            // If the song skips globally, force an instant reload of the stream
+            if (data.status === "success" || data.message.includes("globally")) {
+                syncStream();
+            }
+        } catch (err) {
+            status.innerText = "Error hitting skip server.";
+            console.error(err);
+        }
+    });
+
+    // 🔄 Auto-resync: If someone else skips the song, the stream breaks. 
+    // This catches it instantly and tunes the browser into the next track.
+    audioPlayer.addEventListener('stalled', syncStream);
+    audioPlayer.addEventListener('error', syncStream);
+</script>
+
+</body>
+</html>
