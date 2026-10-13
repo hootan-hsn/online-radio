@@ -1,6 +1,6 @@
 const AUDIO_BASE = "https://raadio.run.place/radio.mp3";
 const API_BASE = "https://raadio.run.place/skip";
-const META_URL   = "https://raadio.run.place/api/now-playing";
+const META_URL   = "https://raadio.run.place/now-playing";
 
 const audioPlayer = new Audio();
 const dashboardText = document.getElementById('dashboard-text');
