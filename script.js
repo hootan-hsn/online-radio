@@ -1,5 +1,6 @@
 const AUDIO_BASE = "https://raadio.run.place/radio.mp3";
 const API_BASE = "https://raadio.run.place/skip";
+const META_URL   = "https://raadio.run.place";
 
 const audioPlayer = new Audio();
 const dashboardText = document.getElementById('dashboard-text');
@@ -11,6 +12,8 @@ const songNameEl = document.getElementById("song-name");
 const artistNameEl = document.getElementById("artist-name");
 const waveCanvas = document.getElementById("wave-bar");
 const waveCtx = waveCanvas.getContext("2d");
+const titleElement  = document.getElementById('song-title');
+const singerElement = document.getElementById('singer-name');
 
 // Auto dark mode based on hour
 function applyDarkMode() {
