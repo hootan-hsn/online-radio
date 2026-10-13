@@ -76,6 +76,15 @@ function reconnect() {
   clearTimeout(retryTimer);
   retryTimer = setTimeout(startStream, 1500);
 }
+// Function to update the player display dynamically
+function updateTrackDisplay(songName, artistName) {
+  document.getElementById('song-name').textContent = songName;
+  document.getElementById('artist-name').textContent = artistName;
+}
+
+// Example usage when switching tracks:
+// updateTrackDisplay("Golden Hour Echoes", "Retro Horizon");
+
 
 playPauseBtn.addEventListener('click', () => {
   if (isPlaying) {
