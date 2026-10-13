@@ -350,3 +350,44 @@ window.addEventListener("resize", sizeWave);
 sizeWave();
 requestAnimationFrame(drawWave);
 initAmbient();
+
+// Function to fetch active song attributes from your AWS server
+async function fetchNowPlaying() {
+    try {
+        const response = await fetch(META_URL);
+        if (!response.ok) throw new Error("Metadata request failed");
+        
+        const data = await response.json();
+        titleElement.innerText  = data.track;
+        singerElement.innerText = data.artist;
+    } catch (err) {
+        console.error("Failed to fetch running track metadata:", err);
+    }
+}
+
+// 🔄 Update your existing Skip click listener to fetch metadata immediately on a skip success
+document.getElementById('skip-btn').addEventListener('click', async () => {
+    const statusDiv = document.getElementById('status');
+    statusDiv.innerText = "Sending skip vote...";
+
+    try {
+        const response = await fetch(SKIP_URL, { method: 'POST' });
+        const data = await response.json();
+        statusDiv.innerText = data.message;
+
+        if (data.message.includes("globally") || data.status === "success") {
+            resyncStream();
+            // Force an instant metadata update if the track gets changed globally
+            setTimeout(fetchNowPlaying, 1000); 
+        }
+    } catch (err) {
+        statusDiv.innerText = "Error reaching voting engine.";
+        console.error(err);
+    }
+});
+
+// Automatically verify and fetch the active track text values every 4 seconds (4000ms)
+setInterval(fetchNowPlaying, 4000);
+
+// Initialize instantly upon application page boot setup
+fetchNowPlaying();
