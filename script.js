@@ -12,13 +12,16 @@
   var CONFIG = {
     // Tried in order; the first that answers wins, the rest are fallbacks.
     HOSTS: [
-      "https://raadio.run.place",
-      "https://radio-relay.hootan-hosseiny.workers.dev"
+      "https://raadio.run.place"
     ],
     STREAM_PATH: "/radio.mp3",
     SKIP_PATH: "/skip",
-    NOW_PLAYING_PATH: null,      // e.g. "/now-playing" once the backend returns {"title": "..."}
-    NOW_PLAYING_EVERY_MS: 20000,
+    // The controller keeps one connection open through track changes, so the player
+    // must not reconnect after a skip. Set to false only with the old per-track controller.
+    CONTINUOUS_STREAM: true,
+    NOW_PLAYING_PATH: "/now-playing",   // returns {"id", "title", "artist"}; set null to disable
+    NOW_PLAYING_EVERY_MS: 30000,
+    VOTE_WINDOW_MS: 90000,              // same as VOTE_WINDOW on the server
     CROSSFADE_MS: 400,
     ANNOUNCEMENTS: [],           // e.g. [{ text: "Weekend mix", at: "2026-10-17T20:00:00Z" }]
     RECORD_MAX_MS: 10 * 60 * 1000,
@@ -464,7 +467,7 @@
       play: play,
       stop: stop,
       toggle: function () { if (wanted) stop(); else play(); },
-      skip: function () { if (wanted) connect("skip"); },
+      skip: function () { if (wanted && !CONFIG.CONTINUOUS_STREAM) connect("skip"); },
       isOn: function () { return wanted; }
     };
   })();
@@ -528,8 +531,12 @@
   var voting = false;
   var voted = false;
 
+  var voteTimer = 0;
+  var nowPlaying = { poll: function () {} };
+
   function resetVote() {
     voted = false;
+    clearTimeout(voteTimer);
     ui.skipBtn.setAttribute("aria-pressed", "false");
     ui.badge.hidden = true;
   }
@@ -539,6 +546,9 @@
     ui.skipBtn.setAttribute("aria-pressed", "true");
     var m = /(\d+)\s*\/\s*(\d+)/.exec(message || "");
     if (m) { setText(ui.badge, m[1] + "/" + m[2]); ui.badge.hidden = false; }
+    // votes expire on the server too, so free the button again after the window
+    clearTimeout(voteTimer);
+    voteTimer = setTimeout(resetVote, CONFIG.VOTE_WINDOW_MS);
   }
 
   function postJSON(url, ms) {
@@ -571,7 +581,17 @@
 
     tryNext().then(function (data) {
       setStatus(data.message || "Vote sent");
-      if (data.skipped) { resetVote(); engine.skip(); log.add("ok", "Track skipped by listeners"); }
+      if (data.skipped) {
+        resetVote();
+        engine.skip();
+        log.add("ok", "Track skipped by listeners");
+        if (CONFIG.CONTINUOUS_STREAM) {
+          // the change reaches the speaker after the player's few seconds of buffer
+          setStatus("Skipping — next song in a moment");
+          setTimeout(nowPlaying.poll, 4000);
+          setTimeout(nowPlaying.poll, 9000);
+        }
+      }
       else if (data.status === "success" || data.status === "ignored") markVoted(data.message);
     }).catch(function () {
       setStatus(navigator.onLine ? "Skip server unreachable" : "You're offline");
@@ -644,24 +664,32 @@
     } catch (e) { /* ignore */ }
   }
 
-  // Optional: live title from the backend
+  // Live title from the backend; a new track id also frees the vote button
   function setupNowPlaying() {
     if (!CONFIG.NOW_PLAYING_PATH) return;
-    var lastTitle = "";
+    var lastId = null, lastTitle = "";
     function poll() {
       if (!engine.isOn() || document.hidden) return;
       fetch(hosts.current() + CONFIG.NOW_PLAYING_PATH, { cache: "no-store" })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (d) {
-          if (!d || !d.title || d.title === lastTitle) return;
-          lastTitle = d.title;
-          setText(ui.songName, d.title);
-          setText(ui.artistName, d.artist || "Live stream");
-          updateMeta(d.title, d.artist || "Raadio");
-        }).catch(function () { /* ignore */ });
+          if (!d) return;
+          if (d.id != null && d.id !== lastId) {
+            if (lastId !== null) resetVote();
+            lastId = d.id;
+          }
+          if (d.title && d.title !== lastTitle) {
+            lastTitle = d.title;
+            setText(ui.songName, d.title);
+            setText(ui.artistName, d.artist || "Live stream");
+            updateMeta(d.title, d.artist || "Raadio");
+          }
+        }).catch(function () { /* endpoint not exposed yet */ });
     }
+    nowPlaying.poll = poll;
     setInterval(poll, CONFIG.NOW_PLAYING_EVERY_MS);
     engine.on("track", function () { setTimeout(poll, 1500); });
+    document.addEventListener("visibilitychange", function () { if (!document.hidden) poll(); });
   }
 
   /* ---------------- Wave ---------------- */
